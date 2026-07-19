@@ -1,0 +1,24 @@
+已翻译版本(ZH)：
+迷宫，大卫·温特著
+
+绘制这样的随机迷宫，就是画出随机的对角线。有两种可能：从右到左的线，以及从左到右的线。线。每条线由一个4×4的位图组成。由于线条必须形成非圆形的角度，因此这两个位图不会是“/”和“\”。第一个（右侧线条）会稍作修改。请参见本源代码末尾部分。
+
+迷宫由16行组成（因为位图高4像素），每行包含32个位图。  
+位图以随机模式绘制。我们随机选择一个值（0或1）。  
+如果为1，则绘制左侧线条的位图；如果为0，则绘制右侧线条的位图。
+
+English: 
+Maze, by David Winter
+
+
+Drawing a random maze like this one consists in drawing random diagonal
+lines. There are two possibilities: right-to-left line, and left-to-right
+line. Each line is composed of a 4*4 bitmap. As the lines must form non-
+circular angles, the two bitmaps won't be '/' and '\'. The first one
+(right line) will be a little bit modified. See at the end of this source.
+
+
+The maze is composed of 16 lines (as the bitmaps are 4 pixels high), each
+line consists of 32 bitmaps.
+Bitmaps are drawn in random mode. We choose a random value (0 or 1).
+If it is 1, we draw a left line bitmap. If it is 0, we draw a right one.
