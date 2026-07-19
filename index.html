@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PythonChip8 – 纯 Python 虚拟机模拟器</title>
+    <!-- 引入 Font Awesome 图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ===== 全局重置 & 基础 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        section {
+            padding: 80px 0;
+        }
+
+        h2 {
+            font-size: 2.2rem;
+            margin-bottom: 30px;
+            text-align: center;
+            position: relative;
+        }
+        h2::after {
+            content: '';
+            display: block;
+            width: 50px;
+            height: 4px;
+            background: linear-gradient(90deg, #58a6ff, #3fb950);
+            margin: 12px auto 0;
+            border-radius: 2px;
+        }
+
+        /* ===== 导航栏 ===== */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 999;
+            background: rgba(13, 17, 23, 0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(88, 166, 255, 0.15);
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+        nav.scrolled {
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+        }
+        nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 62px;
+        }
+        .logo {
+            font-weight: 700;
+            font-size: 1.4rem;
+            letter-spacing: 1px;
+            color: #f0f6fc;
+        }
+        .logo span {
+            color: #58a6ff;
+        }
+        .nav-links {
+            list-style: none;
+            display: flex;
+            gap: 28px;
+        }
+        .nav-links a {
+            color: #c9d1d9;
+            font-size: 0.95rem;
+            transition: color 0.3s;
+        }
+        .nav-links a:hover {
+            color: #58a6ff;
+        }
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            gap: 5px;
+        }
+        .hamburger span {
+            width: 26px;
+            height: 3px;
+            background: #c9d1d9;
+            border-radius: 2px;
+            transition: 0.3s;
+        }
+
+        /* ===== 英雄区 ===== */
+        #hero {
+            min-height: 92vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(ellipse at 25% 45%, #161b22 0%, #0d1117 75%);
+        }
+        /* 粒子画布 */
+        #particle-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            max-width: 780px;
+            animation: fadeInUp 1s ease-out;
+        }
+        .hero-title {
+            font-size: clamp(2.2rem, 7vw, 4.2rem);
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 10px;
+        }
+        .hero-title span {
+            background: linear-gradient(135deg, #58a6ff, #3fb950);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .typing-wrapper {
+            font-size: 1.3rem;
+            color: #8b949e;
+            margin: 18px 0 36px;
+            min-height: 2em;
+        }
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background: #58a6ff;
+            margin-left: 4px;
+            animation: blink 0.8s step-end infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 34px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #238636, #2ea043);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(46, 160, 67, 0.3);
+            animation: pulse-glow 2s infinite;
+        }
+        .btn-primary:hover {
+            transform: translateY(-3px) scale(1.04);
+            box-shadow: 0 0 40px rgba(46, 160, 67, 0.5);
+        }
+        .btn-secondary {
+            background: rgba(56, 139, 253, 0.15);
+            color: #58a6ff;
+            border: 1px solid rgba(88, 166, 255, 0.3);
+        }
+        .btn-secondary:hover {
+            background: rgba(56, 139, 253, 0.25);
+            transform: translateY(-3px);
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(46, 160, 67, 0.3); }
+            50% { box-shadow: 0 0 38px rgba(46, 160, 67, 0.6); }
+        }
+
+        /* ===== 特性区 ===== */
+        #features {
+            background: #0d1117;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-top: 20px;
+        }
+        .feature-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 16px;
+            padding: 32px 24px;
+            text-align: center;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            perspective: 800px;
+            cursor: default;
+        }
+        .feature-card:hover {
+            transform: rotateY(4deg) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            border-color: #58a6ff;
+        }
+        .feature-icon {
+            font-size: 2.6rem;
+            color: #58a6ff;
+            margin-bottom: 16px;
+        }
+        .feature-card h3 {
+            font-size: 1.4rem;
+            margin-bottom: 10px;
+        }
+        .feature-card p {
+            color: #8b949e;
+            font-size: 0.93rem;
+        }
+
+        /* ===== 截图区 ===== */
+        #screenshot {
+            background: #0d1117;
+        }
+        .screenshot-showcase {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        .screen-frame {
+            background: #21262d;
+            border-radius: 12px;
+            padding: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transition: transform 0.4s, box-shadow 0.4s;
+            max-width: 560px;
+            width: 100%;
+        }
+        .screen-frame:hover {
+            transform: scale(1.02);
+            box-shadow: 0 16px 44px rgba(88, 166, 255, 0.2);
+        }
+        .screen-frame img {
+            display: block;
+            width: 100%;
+            border-radius: 8px;
+            image-rendering: pixelated;
+        }
+        .screen-caption {
+            text-align: center;
+            margin-top: 12px;
+            color: #8b949e;
+            font-size: 0.9rem;
+        }
+
+        /* ===== 键盘映射表 ===== */
+        #keymap {
+            background: #161b22;
+        }
+        .keymap-table {
+            max-width: 700px;
+            margin: 0 auto;
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.95rem;
+        }
+        .keymap-table th,
+        .keymap-table td {
+            border: 1px solid #30363d;
+            padding: 10px 16px;
+            text-align: center;
+        }
+        .keymap-table th {
+            background: #21262d;
+            color: #58a6ff;
+            font-weight: 600;
+        }
+        .keymap-table tr:hover td {
+            background: rgba(56, 139, 253, 0.08);
+        }
+        .key-chip {
+            display: inline-block;
+            background: #0d1117;
+            border: 1px solid #484f58;
+            border-radius: 6px;
+            padding: 2px 12px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #f0f6fc;
+        }
+        .key-pc {
+            display: inline-block;
+            background: #21262d;
+            border-radius: 4px;
+            padding: 2px 10px;
+            font-family: 'Courier New', monospace;
+            color: #f0883e;
+        }
+
+        /* ===== 下载区 ===== */
+        #download {
+            background: linear-gradient(180deg, #0d1117 0%, #161b22 100%);
+            text-align: center;
+        }
+        .download-stats {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            margin: 30px 0 40px;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2.6rem;
+            font-weight: 700;
+            color: #58a6ff;
+        }
+        .stat-label {
+            color: #8b949e;
+            font-size: 0.9rem;
+        }
+        .download-buttons .btn {
+            margin: 0 10px;
+        }
+
+        /* ===== 页脚 ===== */
+        footer {
+            background: #0d1117;
+            border-top: 1px solid #21262d;
+            padding: 40px 0;
+            text-align: center;
+            color: #484f58;
+        }
+        footer .socials {
+            margin-bottom: 16px;
+        }
+        footer .socials a {
+            color: #8b949e;
+            font-size: 1.4rem;
+            margin: 0 12px;
+            transition: color 0.3s;
+        }
+        footer .socials a:hover {
+            color: #58a6ff;
+        }
+
+        /* ===== 滚动动画 (IntersectionObserver) ===== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 62px;
+                left: 0;
+                width: 100%;
+                background: rgba(13, 17, 23, 0.97);
+                flex-direction: column;
+                padding: 20px 0;
+                align-items: center;
+                gap: 18px;
+                border-bottom: 1px solid #30363d;
+            }
+            .nav-links.open {
+                display: flex;
+            }
+            .hamburger {
+                display: flex;
+            }
+            .hero-title {
+                font-size: 2.2rem;
+            }
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            .download-stats {
+                gap: 24px;
+            }
+        }
+
+        /* ===== 工具类 ===== */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 导航栏 -->
+<nav id="navbar">
+    <div class="container">
+        <div class="logo"><span>◉</span> PythonChip8</div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="#hero">首页</a></li>
+            <li><a href="#features">特性</a></li>
+            <li><a href="#screenshot">截图</a></li>
+            <li><a href="#keymap">键盘</a></li>
+            <li><a href="#download">下载</a></li>
+        </ul>
+        <div class="hamburger" id="hamburger" onclick="toggleMenu()">
+            <span></span><span></span><span></span>
+        </div>
+    </div>
+</nav>
+
+<!-- 英雄区 -->
+<section id="hero">
+    <canvas id="particle-canvas"></canvas>
+    <div class="hero-content">
+        <h1 class="hero-title">
+            纯 Python 构建<br>
+            <span>CHIP‑8 虚拟机</span>
+        </h1>
+        <div class="typing-wrapper">
+            <span id="typing-text"></span><span class="typing-cursor"></span>
+        </div>
+        <div class="hero-buttons">
+            <a href="#download" class="btn btn-primary"><i class="fas fa-download"></i> 立即下载</a>
+            <a href="#features" class="btn btn-secondary"><i class="fas fa-info-circle"></i> 了解更多</a>
+        </div>
+    </div>
+</section>
+
+<!-- 特性区 -->
+<section id="features">
+    <div class="container reveal">
+        <h2>✨ 核心特性</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-microchip"></i></div>
+                <h3>完整指令集</h3>
+                <p>35 条标准 CHIP‑8 指令全支持，包括绘图、BCD、按键等待、定时器等。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fab fa-python"></i></div>
+                <h3>零外部依赖</h3>
+                <p>仅使用 Python 标准库（tkinter / random / time），无需 pip install 任何包。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-desktop"></i></div>
+                <h3>VMware 风格 UI</h3>
+                <p>左侧虚拟机列表 + 右侧屏幕与寄存器面板，致敬专业虚拟机管理器。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-keyboard"></i></div>
+                <h3>物理键盘映射</h3>
+                <p>CHIP‑8 十六键自然映射至 PC 键盘（1-4/Q-W-E-R/A-S-D-F/Z-X-C-V）。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-sync-alt"></i></div>
+                <h3>实时调试视图</h3>
+                <p>PC、SP、I、定时器及 V0~VF 寄存器每帧刷新，便于学习和调试。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-gamepad"></i></div>
+                <h3>ROM 热加载</h3>
+                <p>支持运行 / 暂停 / 重置，随时加载任意 .ch8 文件，即刻游玩经典游戏。</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 截图区 -->
+<section id="screenshot">
+    <div class="container reveal">
+        <h2>📸 运行截图</h2>
+        <div class="screenshot-showcase">
+            <div class="screen-frame">
+                <!-- 这里放一张模拟截图（可用 CSS 绘制替代真实图片） -->
+                <div style="background:#000; aspect-ratio:64/32; display:flex; align-items:center; justify-content:center; border-radius:6px;">
+                    <span style="color:#00ff00; font-family:'Courier New'; font-size:1.2rem;">▣ CHIP‑8 屏幕 ▣</span>
+                </div>
+                <div class="screen-caption">运行中的 实例 程序（示意）</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 键盘映射表 -->
+<section id="keymap">
+    <div class="container reveal">
+        <h2>⌨️ 键盘映射</h2>
+        <table class="keymap-table">
+            <thead>
+                <tr><th>CHIP‑8</th><th>PC 键</th><th>CHIP‑8</th><th>PC 键</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><span class="key-chip">1</span></td><td><span class="key-pc">1</span></td><td><span class="key-chip">C</span></td><td><span class="key-pc">4</span></td></tr>
+                <tr><td><span class="key-chip">2</span></td><td><span class="key-pc">2</span></td><td><span class="key-chip">D</span></td><td><span class="key-pc">R</span></td></tr>
+                <tr><td><span class="key-chip">3</span></td><td><span class="key-pc">3</span></td><td><span class="key-chip">E</span></td><td><span class="key-pc">F</span></td></tr>
+                <tr><td><span class="key-chip">4</span></td><td><span class="key-pc">Q</span></td><td><span class="key-chip">F</span></td><td><span class="key-pc">V</span></td></tr>
+                <tr><td><span class="key-chip">5</span></td><td><span class="key-pc">W</span></td><td><span class="key-chip">6</span></td><td><span class="key-pc">E</span></td></tr>
+                <tr><td><span class="key-chip">7</span></td><td><span class="key-pc">A</span></td><td><span class="key-chip">8</span></td><td><span class="key-pc">S</span></td></tr>
+                <tr><td><span class="key-chip">9</span></td><td><span class="key-pc">D</span></td><td><span class="key-chip">0</span></td><td><span class="key-pc">X</span></td></tr>
+                <tr><td><span class="key-chip">A</span></td><td><span class="key-pc">Z</span></td><td><span class="key-chip">B</span></td><td><span class="key-pc">C</span></td></tr>
+            </tbody>
+        </table>
+        <p style="text-align:center; color:#8b949e; margin-top:20px;">注：CHIP‑8 原始键盘为 4×4 十六进制布局</p>
+    </div>
+</section>
+
+<!-- 下载区 -->
+<section id="download">
+    <div class="container reveal">
+        <h2>📦 获取 PythonChip8</h2>
+        <div class="download-stats">
+            <div class="stat-item">
+                <div class="stat-number" id="downloadCount">1,024</div>
+                <div class="stat-label">总下载量</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">⭐ 86</div>
+                <div class="stat-label">GitHub Stars</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">🐍 3.6+</div>
+                <div class="stat-label">Python 版本</div>
+            </div>
+        </div>
+        <div class="download-buttons">
+            <a href="https://github.com/LGOS-Studio/PythonChip8/releases" class="btn btn-primary"><i class="fab fa-github"></i> GitHub Release</a>
+            <a href="https://github.com/LGOS-Studio/PythonChip8/archive/refs/heads/main.zip" class="btn btn-secondary"><i class="fas fa-file-archive"></i> 直接下载 ZIP</a>
+        </div>
+        <p style="margin-top:24px; color:#8b949e;">单个 .py 文件，开箱即用。</p>
+    </div>
+</section>
+
+<!-- 页脚 -->
+<footer>
+    <div class="container">
+        <div class="socials">
+            <a href="https://github.com/LGOS-Studio"><i class="fab fa-github"></i></a>
+            <a href="https://qm.qq.com/q/Ta1H2YZaMy"><i class="fa-brands fa-qq"></i></a>
+            <a href="mailto:2920160872@qq.com"><i class="fa-solid fa-envelope"></i></a>
+        </div>
+        <p>&copy; 2024–2026 LGOS Studio. MIT License.</p>
+        <p style="margin-top:6px; font-size:0.82rem;">Made with ❤️ and Python</p>
+    </div>
+</footer>
+
+<script>
+    // ========== 1. 移动端菜单 ==========
+    function toggleMenu() {
+        const links = document.getElementById('navLinks');
+        links.classList.toggle('open');
+    }
+
+    // 点击导航链接后关闭菜单
+    document.querySelectorAll('.nav-links a').forEach(a => {
+        a.addEventListener('click', () => {
+            document.getElementById('navLinks').classList.remove('open');
+        });
+    });
+
+    // ========== 2. 导航栏滚动阴影 ==========
+    window.addEventListener('scroll', () => {
+        const nav = document.getElementById('navbar');
+        if (window.scrollY > 50) {
+            nav.classList.add('scrolled');
+        } else {
+            nav.classList.remove('scrolled');
+        }
+    });
+
+    // ========== 3. 打字机效果 ==========
+    const phrases = [
+        '零依赖，纯 Python 实现',
+        'VMware 风格 GUI',
+        '经典 CHIP‑8 游戏模拟',
+        '开源 · 免费 · 跨平台'
+    ];
+    let phraseIndex = 0;
+    let charIndex = 0;
+    let isDeleting = false;
+    const typingElement = document.getElementById('typing-text');
+
+    function typeEffect() {
+        const currentPhrase = phrases[phraseIndex];
+        if (!isDeleting) {
+            typingElement.textContent = currentPhrase.substring(0, charIndex + 1);
+            charIndex++;
+            if (charIndex === currentPhrase.length) {
+                isDeleting = true;
+                setTimeout(typeEffect, 2200);
+                return;
+            }
+            setTimeout(typeEffect, 72);
+        } else {
+            typingElement.textContent = currentPhrase.substring(0, charIndex - 1);
+            charIndex--;
+            if (charIndex === 0) {
+                isDeleting = false;
+                phraseIndex = (phraseIndex + 1) % phrases.length;
+                setTimeout(typeEffect, 360);
+                return;
+            }
+            setTimeout(typeEffect, 42);
+        }
+    }
+    typeEffect();
+
+    // ========== 4. 粒子背景 (Canvas) ==========
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    const particleCount = 90;
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    class Particle {
+        constructor() {
+            this.reset();
+        }
+        reset() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.size = Math.random() * 2.5 + 0.8;
+            this.speedX = (Math.random() - 0.5) * 0.6;
+            this.speedY = (Math.random() - 0.5) * 0.6;
+            this.opacity = Math.random() * 0.5 + 0.2;
+        }
+        update() {
+            this.x += this.speedX;
+            this.y += this.speedY;
+            if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+            if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+        }
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(136, 192, 208, ${this.opacity})`;
+            ctx.fill();
+        }
+    }
+
+    for (let i = 0; i < particleCount; i++) {
+        particles.push(new Particle());
+    }
+
+    function animateParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+            p.update();
+            p.draw();
+        });
+        // 连线
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 130) {
+                    ctx.beginPath();
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.strokeStyle = `rgba(88, 166, 255, ${0.09 * (1 - dist / 140)})`;
+                    ctx.lineWidth = 0.6;
+                    ctx.stroke();
+                }
+            }
+        }
+        requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+
+    // ========== 5. 滚动渐现 (IntersectionObserver) ==========
+    const revealElements = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+            }
+        });
+    }, { threshold: 0.15 });
+    revealElements.forEach(el => observer.observe(el));
+
+    // ========== 6. 下载计数动画 ==========
+    function animateCounter(element, target, duration = 2500) {
+        let start = 0;
+        const increment = Math.ceil(target / (duration / 16));
+        const timer = setInterval(() => {
+            start += increment;
+            if (start >= target) {
+                element.textContent = target.toLocaleString();
+                clearInterval(timer);
+            } else {
+                element.textContent = start.toLocaleString();
+            }
+        }, 16);
+    }
+    // 当下载统计可见时触发
+    const downloadStat = document.getElementById('downloadCount');
+    const statObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !entry.target.dataset.counted) {
+                entry.target.dataset.counted = 'true';
+                animateCounter(downloadStat, 1024);
+            }
+        });
+    }, { threshold: 0.5 });
+    statObserver.observe(document.querySelector('.download-stats'));
+</script>
+</body>
+</html>
