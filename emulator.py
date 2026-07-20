@@ -223,13 +223,19 @@ class VMApp(tk.Tk):
         self.cycle_rate = 10  # 每帧执行的指令数（可调）
 
     def _build_gui(self):
+        #解决界面糊成一坨的问题
+        import platform
+        if platform.system()=="Windows":
+            from ctypes import windll
+            windll.user32.SetProcessDPIAware()
+        
         # 主布局：左列表 + 右内容
         left_frame = tk.Frame(self, width=200, bg="#2b2b2b", relief=tk.RIDGE, bd=2)
         left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 5))
         left_frame.pack_propagate(False)
 
         tk.Label(left_frame, text="虚拟机", bg="#2b2b2b", fg="white",
-                 font=("Segoe UI", 12, "bold")).pack(pady=10)
+                 font=("Segoe UI", 12)).pack(pady=10)
 
         # 虚拟机列表（只有一个）
         vm_listbox = tk.Listbox(left_frame, bg="#3c3f41", fg="white",
@@ -246,7 +252,7 @@ class VMApp(tk.Tk):
         # 标题
         title_label = tk.Label(right_frame, text="运行状态",
                                bg="#1e1e1e", fg="#cccccc",
-                               font=("Segoe UI", 14, "bold"))
+                               font=("Segoe UI", 14))
         title_label.pack(pady=(10, 5))
 
         # 画布（屏幕）
